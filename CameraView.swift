@@ -11,28 +11,40 @@ struct CameraView: UIViewControllerRepresentable {
         func toggleCamera() {
             parent.cameraViewController?.toggleCamera()
         }
+
+        func updateEmotion(_ emotion: String) {
+            // Update the detectedEmotion binding directly
+            DispatchQueue.main.async {
+                self.parent.detectedEmotion = emotion
+            }
+        }
     }
 
-    var cameraViewController: CameraViewController? = CameraViewController()
+    @Binding var detectedEmotion: String
+    @State private var cameraViewController: CameraViewController? // Change to @State
+
+    init(detectedEmotion: Binding<String>) {
+        self._detectedEmotion = detectedEmotion // Binding
+        self._cameraViewController = State(initialValue: CameraViewController()) // Initialize cameraViewController here
+    }
 
     func makeCoordinator() -> Coordinator {
         return Coordinator(parent: self)
     }
 
     func makeUIViewController(context: Context) -> CameraViewController {
+        cameraViewController?.emotionUpdateHandler = { emotion in
+            context.coordinator.updateEmotion(emotion) // Call the update function
+        }
         return cameraViewController!
     }
 
     func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {
         // No need to update the controller for now.
     }
-    
-    // Method to toggle the camera from ContentView
-    func toggleCamera() {
-        cameraViewController?.toggleCamera()
-    }
 }
 
 #Preview {
-    CameraView()
+    // Use a constant for preview
+    CameraView(detectedEmotion: .constant("Unknown"))
 }

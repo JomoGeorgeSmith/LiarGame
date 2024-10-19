@@ -9,6 +9,10 @@ class CameraViewController: UIViewController {
     private let captureSession = AVCaptureSession()
     
     private lazy var previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+
+    // Closure to handle detected emotions
+    var emotionUpdateHandler: ((String) -> Void)?
+    private var emotionalAnalyzer: EmotionalAnalyzer?
     
     // Start with the back camera
     private var currentCameraPosition: AVCaptureDevice.Position = .front
@@ -16,6 +20,7 @@ class CameraViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        emotionalAnalyzer = EmotionalAnalyzer() // Initialize the emotional analyzer
         addCameraInput()
         showCameraFeed()
         getCameraFrames()
@@ -28,17 +33,13 @@ class CameraViewController: UIViewController {
     }
     
     private func addCameraInput() {
-        // Ensure we stop the session first
         captureSession.stopRunning()
-
-        // Remove existing inputs
         if let inputs = captureSession.inputs as? [AVCaptureInput] {
             for input in inputs {
                 captureSession.removeInput(input)
             }
         }
 
-        // Setup discovery session for cameras
         let discoverySession = AVCaptureDevice.DiscoverySession(
             deviceTypes: [.builtInTrueDepthCamera, .builtInDualCamera, .builtInWideAngleCamera],
             mediaType: .video,
@@ -77,17 +78,9 @@ class CameraViewController: UIViewController {
     
     func toggleCamera() {
         captureSession.stopRunning()
-        
-        // Clear any previous face detection drawings
         clearDrawings()
-        
-        // Toggle the current camera position
         currentCameraPosition = (currentCameraPosition == .front) ? .back : .front
-        
-        // Add new camera input
         addCameraInput()
-        
-        // Start running the session again
         captureSession.startRunning()
     }
 
@@ -96,8 +89,10 @@ class CameraViewController: UIViewController {
             DispatchQueue.main.async {
                 if let results = vnRequest.results as? [VNFaceObservation], results.count > 0 {
                     self.handleFaceDetectionResults(observedFaces: results)
+                    self.detectEmotion(image: image) // Call emotion detection after face detection
                 } else {
                     self.clearDrawings()
+                    self.emotionUpdateHandler?("Unknown") // No face detected
                 }
             }
         }
@@ -105,7 +100,7 @@ class CameraViewController: UIViewController {
         let imageResultHandler = VNImageRequestHandler(cvPixelBuffer: image, orientation: .leftMirrored, options: [:])
         try? imageResultHandler.perform([faceDetectionRequest])
     }
-    
+
     private func handleFaceDetectionResults(observedFaces: [VNFaceObservation]) {
         clearDrawings()
         
@@ -127,6 +122,16 @@ class CameraViewController: UIViewController {
     
     private func clearDrawings() {
         drawings.forEach({ drawing in drawing.removeFromSuperlayer() })
+    }
+    
+    private func detectEmotion(image: CVPixelBuffer) {
+        // Use the EmotionalAnalyzer to analyze the captured frame
+        if let detectedEmotion = emotionalAnalyzer?.analyzeEmotion(from: image) {
+            // Update the emotion using the handler
+            emotionUpdateHandler?(detectedEmotion.rawValue.capitalized)
+        } else {
+            emotionUpdateHandler?("Unknown") // Emotion could not be detected
+        }
     }
 }
 

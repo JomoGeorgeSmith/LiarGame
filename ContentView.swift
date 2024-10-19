@@ -2,19 +2,21 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var detectedEmotion = "Unknown"  // Emotion State Variable
-    @State private var cameraView = CameraView()
 
     var body: some View {
         ZStack {
             // Camera view
-            cameraView
+            CameraView(detectedEmotion: $detectedEmotion) // Update: Removed closure
                 .edgesIgnoringSafeArea(.all)
 
             VStack {
                 HStack {
                     Button(action: {
                         // Toggle the camera in the CameraView
-                        cameraView.toggleCamera()
+                        // Ensure the toggleCamera method works properly
+                        if let cameraViewController = UIApplication.shared.windows.first?.rootViewController as? CameraViewController {
+                            cameraViewController.toggleCamera()
+                        }
                     }) {
                         Image(systemName: "camera.rotate")
                             .foregroundColor(.white)
@@ -57,3 +59,4 @@ struct ContentView: View {
 #Preview {
     ContentView()
 }
+
